@@ -1,0 +1,18 @@
+[project]
+name = "dark-room-tui"
+version = "0.1.0"
+description = "Terminal-native port of A Dark Room (Michael Townsend / doublespeakgames)"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.80,<10",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["dark_room_tui"]
+
+[tool.setuptools.package-data]
+dark_room_tui = ["tui.tcss"]

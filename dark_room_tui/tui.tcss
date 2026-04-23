@@ -1,0 +1,54 @@
+/* A Dark Room — minimalist TUI stylesheet.
+
+   Palette is deliberately warm (firelight) with a darker background.
+*/
+
+Screen {
+    background: #0a0a0a;
+    color: #dddddd;
+}
+
+#title {
+    dock: top;
+    height: 3;
+    padding: 0 2;
+    background: #141414;
+    color: #ffbb44;
+    text-style: bold;
+}
+
+#main {
+    height: 1fr;
+}
+
+#location {
+    width: 2fr;
+    padding: 1 2;
+    background: #141414;
+    border: tall #2a2a2a;
+}
+
+#stores {
+    width: 1fr;
+    padding: 1 2;
+    background: #0f0f0f;
+    border: tall #2a2a2a;
+}
+
+#log {
+    height: 12;
+    background: #050505;
+    color: #cccccc;
+    border: tall #2a2a2a;
+    padding: 0 1;
+}
+
+Footer {
+    background: #111111;
+    color: #888888;
+}
+
+Header {
+    background: #141414;
+    color: #ffbb44;
+}
