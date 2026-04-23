@@ -43,8 +43,10 @@ def main() -> None:
     app.path.init()
     # Outside the Textual lifecycle, compose() hasn't run. Instantiate the
     # panel widgets directly for benchmarking.
-    app._location = LocationPanel()
-    app._stores = StoresPanel()
+    location = LocationPanel()
+    stores = StoresPanel()
+    app._location = location
+    app._stores = stores
 
     print("Perf — A Dark Room TUI")
     print("-" * 62)
@@ -54,16 +56,16 @@ def main() -> None:
     bench("outside.num_gatherers()", lambda: app.outside.num_gatherers(), iters=5000)
 
     # location panel render (returns Text)
-    bench("LocationPanel render (room)", lambda: app._location._render_room(app), iters=2000)
+    bench("LocationPanel render (room)", lambda: location._render_room(app), iters=2000)
 
     # Enter the world
     e.stores_set("cured meat", 100)
     app.path.increase("cured meat", 20)
     app.path.embark()
-    bench("LocationPanel render (world)", lambda: app._location._render_world(app), iters=500)
+    bench("LocationPanel render (world)", lambda: location._render_world(app), iters=500)
     bench("world.move roundtrip", _move_roundtrip(app), iters=500)
     bench("StoresPanel render",
-          lambda: app._stores.build_text(app.engine, app.outside), iters=1000)
+          lambda: stores.build_text(app.engine, app.outside), iters=1000)
 
 
 def _move_roundtrip(app: DarkRoomApp):

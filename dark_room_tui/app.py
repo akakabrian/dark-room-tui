@@ -15,8 +15,6 @@ button-heavy UI but keyboard-first.
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -404,10 +402,10 @@ class DarkRoomApp(App):
         self.worker_menu: list[str] = []
         self.outfit_menu: list[str] = []
 
-        self._log: Optional[RichLog] = None
-        self._stores: Optional[StoresPanel] = None
-        self._location: Optional[LocationPanel] = None
-        self._title: Optional[Static] = None
+        self._event_log: RichLog | None = None
+        self._stores: StoresPanel | None = None
+        self._location: LocationPanel | None = None
+        self._title: Static | None = None
 
     # --- textual lifecycle ----------------------------------------------
 
@@ -420,15 +418,16 @@ class DarkRoomApp(App):
             yield self._location
             self._stores = StoresPanel("", id="stores")
             yield self._stores
-        self._log = RichLog(id="log", wrap=True, markup=False, highlight=False,
-                            max_lines=500, auto_scroll=True)
-        yield self._log
+        self._event_log = RichLog(id="log", wrap=True, markup=False,
+                                  highlight=False, max_lines=500,
+                                  auto_scroll=True)
+        yield self._event_log
         yield Footer()
 
     def on_mount(self) -> None:
         self.room.init()
         # engine event subscriptions — pipe notifications to RichLog
-        self.engine.on("notify", self._on_notify)
+        self.engine.on("notify", self._handle_notify)
         self.engine.on("unlock_forest", self._on_unlock_forest)
         self.engine.on("lodge_built", lambda: None)
         self.engine.on("builder_helping", self._on_builder_helping)
@@ -477,15 +476,15 @@ class DarkRoomApp(App):
 
     # --- event handlers --------------------------------------------------
 
-    def _on_notify(self, note: Notification) -> None:
-        if self._log is None:
+    def _handle_notify(self, note: Notification) -> None:
+        if self._event_log is None:
             return
         t = Text()
         t.append(f"[{self.engine.time:6.1f}] ", style="dim")
         if note.module:
             t.append(f"{note.module}: ", style=_style_for(note.module))
         t.append(note.text)
-        self._log.write(t)
+        self._event_log.write(t)
 
     def _on_unlock_forest(self) -> None:
         self.outside.init()

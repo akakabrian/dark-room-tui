@@ -59,6 +59,7 @@ class Outside:
         self.last_gather_time = -1e9
         self.last_traps_time = -1e9
         self._pop_timer = None
+        self._subscribed = False
 
     def init(self) -> None:
         e = self.e
@@ -71,9 +72,12 @@ class Outside:
         if e.get("game", "workers", default=None) is None:
             e.set("game", "workers", value={})
 
-        # subscribe to building changes so worker slots get created
-        e.on("buildings_changed", self._on_building_built)
-        e.on("lodge_built", lambda: self._ensure_workers_for("lodge"))
+        # subscribe to building changes so worker slots get created (once —
+        # app.py calls init() from multiple code paths).
+        if not self._subscribed:
+            e.on("buildings_changed", self._on_building_built)
+            e.on("lodge_built", lambda: self._ensure_workers_for("lodge"))
+            self._subscribed = True
 
         if not e.get("game", "outside", "seenForest"):
             e.notify("outside", "the sky is grey and the wind blows relentlessly")
@@ -107,20 +111,20 @@ class Outside:
             return False
         num_bait = int(e.stores_get("bait"))
         num_drops = num_traps + (num_bait if num_bait < num_traps else num_traps)
-        drops: dict[str, int] = {}
+        drops: dict[str, float] = {}
         msgs: list[str] = []
         for _ in range(num_drops):
             roll = e.rng.random()
             for upper, name, msg in TRAP_DROPS:
                 if roll < upper:
                     if name not in drops:
-                        drops[name] = 0
+                        drops[name] = 0.0
                         msgs.append(msg)
-                    drops[name] += 1
+                    drops[name] = drops[name] + 1
                     break
         bait_used = min(num_bait, num_traps)
         if bait_used > 0:
-            drops["bait"] = drops.get("bait", 0) - bait_used
+            drops["bait"] = drops.get("bait", 0.0) - bait_used
         if msgs:
             s = "the traps contain "
             for i, m in enumerate(msgs):

@@ -224,20 +224,20 @@ class World:
 
     # ---- map generation ------------------------------------------------
 
-    def _choose_tile(self, x: int, y: int, m: list[list[Optional[str]]]) -> str:
+    def _choose_tile(self, x: int, y: int, m: list[list[str]]) -> str:
         rng = self.e.rng
-        adj = [
-            m[x][y - 1] if y > 0 else None,
-            m[x][y + 1] if y < SIZE - 1 else None,
-            m[x + 1][y] if x < SIZE - 1 else None,
-            m[x - 1][y] if x > 0 else None,
+        adj: list[str] = [
+            m[x][y - 1] if y > 0 else "",
+            m[x][y + 1] if y < SIZE - 1 else "",
+            m[x + 1][y] if x < SIZE - 1 else "",
+            m[x - 1][y] if x > 0 else "",
         ]
         chances: dict[str, float] = {}
         non_sticky = 1.0
         for a in adj:
             if a == TILE.VILLAGE:
                 return TILE.FOREST
-            if isinstance(a, str):
+            if a:  # unset tiles are ""
                 chances[a] = chances.get(a, 0.0) + STICKINESS
                 non_sticky -= STICKINESS
         for t in TERRAIN:

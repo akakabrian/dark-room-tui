@@ -10,11 +10,14 @@ Core mechanics:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable, Union
 
 if TYPE_CHECKING:
     from .engine import Engine
+
+
+CostSpec = Union[dict[str, int], Callable[["Engine"], dict[str, int]]]
 
 
 FIRE_COOL_DELAY = 5 * 60.0
@@ -31,7 +34,7 @@ TEMP_NAMES = ["freezing", "cold", "mild", "warm", "hot"]
 class Craftable:
     name: str
     type: str  # building | weapon | upgrade | tool | good
-    cost: dict  # dict[str, int] OR callable(engine) -> dict
+    cost: CostSpec  # dict[str, int] OR callable(engine) -> dict
     maximum: int = 0  # 0 = unlimited (actually JS uses no maximum field)
     available_msg: str = ""
     build_msg: str = ""
@@ -39,9 +42,10 @@ class Craftable:
 
 
 def _cost(engine: "Engine", craft: Craftable) -> dict[str, int]:
-    if callable(craft.cost):
-        return craft.cost(engine)
-    return dict(craft.cost)
+    c = craft.cost
+    if callable(c):
+        return c(engine)
+    return dict(c)
 
 
 def _trap_cost(engine: "Engine") -> dict[str, int]:

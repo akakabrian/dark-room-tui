@@ -73,7 +73,7 @@ def assert_ge(a, b, msg: str = "") -> None:
 async def _mount_clean(app: DarkRoomApp, pilot) -> None:
     assert app._location is not None
     assert app._stores is not None
-    assert app._log is not None
+    assert app._event_log is not None
     # active default is room
     assert_eq(app.active_location, "room")
     assert_eq(app.room.fire_name(), "dead")
@@ -242,8 +242,10 @@ async def _move(app: DarkRoomApp, pilot) -> None:
     app.engine.stores_set("cured meat", 20)
     app.path.increase("cured meat", 10)
     app.path.embark()
+    assert app.world.state is not None
     before = sum(sum(row) for row in app.world.state.mask)
     app.world.move(1, 0)
+    assert app.world.state is not None
     after = sum(sum(row) for row in app.world.state.mask)
     assert_gt(after, before, "mask expands on move")
 
@@ -257,8 +259,7 @@ async def _return(app: DarkRoomApp, pilot) -> None:
     app.path.embark()
     for _ in range(3):
         app.world.move(1, 0)
-    # step back to village
-    app.world.cur_pos_village = False
+    # commit the expedition back to persistent state
     app.world.go_home()
     assert app.world.state is None, "expedition committed"
 
@@ -272,6 +273,7 @@ async def _combat(app: DarkRoomApp, pilot) -> None:
     app.path.embark()
     from dark_room_tui.world import Enemy, Combat
     enemy = Enemy("dummy", 2, 1, 0.0, {"fur": (1, 1)})
+    assert app.world.state is not None
     app.world.state.combat = Combat(enemy=enemy, enemy_hp=enemy.health)
     # hit chance is BASE_HIT_CHANCE 0.8; seeded RNG will land
     app.world.combat_attack("fists")
@@ -323,9 +325,10 @@ async def _stores_render(app: DarkRoomApp, pilot) -> None:
     app.engine.stores_set("wood", 42)
     await pilot.pause()
     app._refresh_ui()
-    # StoresPanel is a Static — its render() returns a rich Text
-    rendered = app._stores.render()
-    text = rendered.plain if hasattr(rendered, "plain") else str(rendered)
+    # StoresPanel.build_text() returns a rich Text directly (no Renderable
+    # coercion through Static.render()).
+    assert app._stores is not None
+    text = app._stores.build_text(app.engine, app.outside).plain
     assert "42" in text, f"stores panel missing '42' in {text!r}"
     assert "wood" in text
 
@@ -369,8 +372,10 @@ async def _combat_empty(app: DarkRoomApp, pilot) -> None:
     app.path.embark()
     from dark_room_tui.world import Combat, Enemy
     enemy = Enemy("test", 1, 1, 0.0, {"fur": (1, 1)})
+    assert app.world.state is not None
     app.world.state.combat = Combat(enemy=enemy, enemy_hp=enemy.health)
     app.world.combat_attack("fists")  # no costed weapon needed
+    assert app.world.state is not None
     assert app.world.state.combat is None
 
 
@@ -393,9 +398,11 @@ async def _out_of_bounds(app: DarkRoomApp, pilot) -> None:
     app.path.embark()
     # teleport to an edge and try to step further — should clamp
     from dark_room_tui.world import SIZE
+    assert app.world.state is not None
     app.world.state.cur_pos = [SIZE - 1, SIZE - 1]
     app.world.move(1, 0)   # off east
     app.world.move(0, 1)   # off south
+    assert app.world.state is not None
     x, y = app.world.state.cur_pos
     assert 0 <= x < SIZE and 0 <= y < SIZE, f"pos clamped, got ({x},{y})"
 
@@ -411,6 +418,7 @@ async def _unknown(app: DarkRoomApp, pilot) -> None:
 @scenario("robust_stores_panel_with_empty_state")
 async def _empty_store(app: DarkRoomApp, pilot) -> None:
     # freshly built app has no stores — build_text must not crash
+    assert app._stores is not None
     t = app._stores.build_text(app.engine, app.outside)
     assert "stores" in t.plain
 
@@ -418,6 +426,7 @@ async def _empty_store(app: DarkRoomApp, pilot) -> None:
 @scenario("robust_location_panel_world_without_state")
 async def _world_without(app: DarkRoomApp, pilot) -> None:
     app.active_location = "world"
+    assert app._location is not None
     t = app._location._render_world(app)
     assert "not out there" in t.plain, "graceful empty-world render"
 
@@ -427,6 +436,7 @@ async def _bar_renders(app: DarkRoomApp, pilot) -> None:
     app.outside.init()
     app.outside.gather_wood()
     app.engine.advance(30)  # halfway through cooldown
+    assert app._location is not None
     t = app._location._render_outside(app)
     assert "[" in t.plain and "#" in t.plain, f"bar partial fill, got {t.plain!r}"
 
@@ -434,6 +444,7 @@ async def _bar_renders(app: DarkRoomApp, pilot) -> None:
 @scenario("polish_fire_color_changes_with_level")
 async def _fire_color(app: DarkRoomApp, pilot) -> None:
     # cold -> dead
+    assert app._location is not None
     t0 = app._location._render_room(app).plain
     app.engine.stores_set("wood", 5)
     app.room.light_fire()
