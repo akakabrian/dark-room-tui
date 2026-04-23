@@ -1,0 +1,7 @@
+{
+  "tool_name": "Edit",
+  "tool_input_preview": "{\"file_path\":\"/home/brian/AI/projects/tui-rl/tui_rl/train.py\",\"old_string\":\"    if env_name == \\\"chess\\\":\\n        from tui_rl.envs.chess_env import ChessEnv\\n        return ChessEnv(max_steps=200)\\n ...",
+  "error": "File content has changed since it was last read. This commonly happens when a linter or formatter run via Bash rewrites the file. Call Read on this file to refresh, then retry the edit.",
+  "timestamp": "2026-04-23T23:31:46.837Z",
+  "retry_count": 1
+}
