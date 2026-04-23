@@ -29,6 +29,7 @@ from .outside import Outside, INCOME as OUTSIDE_INCOME
 from .path import Path, OUTFITTABLE, WEAPONS
 from .room import Room, CRAFTABLES, TRADE_GOODS, FIRE_NAMES, TEMP_NAMES
 from .ship import Ship
+from .sound import SoundEngine
 from .world import RADIUS, SIZE, TILE, World
 
 
@@ -158,8 +159,14 @@ class LocationPanel(Static):
         e = s.engine
         r = s.room
         t = Text()
-        t.append(r.title() + "\n\n", style="bold " + MODULE_STYLES["room"])
-        t.append(f"  fire: {r.fire_name()}\n")
+        # Fire color warms with level (dim gray → bright gold)
+        fire_level = e.get("game", "fire", "value") or 0
+        fire_colors = ["#555555", "#7a5a22", "#b8812a", "#dfa43d", "#ffbb44"]
+        t.append(r.title() + "\n\n", style="bold " + fire_colors[fire_level])
+        # Fire as a glyph row
+        fire_glyph = "·" if fire_level == 0 else "▴" * max(1, fire_level)
+        t.append(f"  fire: {r.fire_name():<12} {fire_glyph}\n",
+                 style=fire_colors[fire_level])
         t.append(f"  room: {r.temp_name()}\n\n")
 
         actions = []
@@ -215,10 +222,10 @@ class LocationPanel(Static):
         cg_left = max(0.0, 60.0 - (e.time - o.last_gather_time))
         ct_left = max(0.0, 90.0 - (e.time - o.last_traps_time))
         t.append("  actions:\n", style="bold")
-        t.append(f"    [G] gather wood  ({self._cd(cg_left)})\n")
+        t.append(f"    [G] gather wood  {self._bar(cg_left, 60.0)}\n")
         traps = (e.get("game", "buildings") or {}).get("trap", 0) or 0
         if traps > 0:
-            t.append(f"    [K] check traps ({self._cd(ct_left)})\n")
+            t.append(f"    [K] check traps {self._bar(ct_left, 90.0)}\n")
 
         workers = e.get("game", "workers") or {}
         if workers:
@@ -317,6 +324,16 @@ class LocationPanel(Static):
             return "ready"
         return f"{seconds:4.0f}s"
 
+    @staticmethod
+    def _bar(remaining: float, total: float, width: int = 10) -> str:
+        """Render a cooldown bar: [####······]  12s  (or 'ready')."""
+        if remaining <= 0:
+            return "[" + "#" * width + "]  ready"
+        frac = 1.0 - remaining / total
+        filled = int(width * frac)
+        body = "#" * filled + "·" * (width - filled)
+        return f"[{body}] {remaining:4.0f}s"
+
 
 class DarkRoomApp(App):
     CSS_PATH = "tui.tcss"
@@ -371,7 +388,7 @@ class DarkRoomApp(App):
     active_location: reactive[str] = reactive("room")
     pending_mode: reactive[str] = reactive("")  # '' | 'craft' | 'buy' | 'out+' | 'out-'
 
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(self, seed: int | None = None, mute: bool = False) -> None:
         super().__init__()
         self.engine = Engine(seed=seed)
         self.room = Room(self.engine)
@@ -379,6 +396,7 @@ class DarkRoomApp(App):
         self.world = World(self.engine)
         self.path = Path(self.engine, self.world)
         self.ship = Ship(self.engine)
+        self.sound = SoundEngine(enabled=not mute)
 
         # UI-side menus filled by the location renderers
         self.craft_menu: list[str] = []
@@ -418,6 +436,7 @@ class DarkRoomApp(App):
         self.engine.on("world_return", self._on_world_return)
         self.engine.on("world_arrival", self._on_world_arrival)
         self.engine.on("combat_end", self._on_combat_end)
+        self.engine.on("sound", lambda tag: self.sound.play(tag))
         # start the timers
         self.set_interval(0.1, self._tick)
         self.set_interval(0.5, self._refresh_ui)

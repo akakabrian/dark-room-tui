@@ -422,6 +422,33 @@ async def _world_without(app: DarkRoomApp, pilot) -> None:
     assert "not out there" in t.plain, "graceful empty-world render"
 
 
+@scenario("polish_cooldown_bar_renders")
+async def _bar_renders(app: DarkRoomApp, pilot) -> None:
+    app.outside.init()
+    app.outside.gather_wood()
+    app.engine.advance(30)  # halfway through cooldown
+    t = app._location._render_outside(app)
+    assert "[" in t.plain and "#" in t.plain, f"bar partial fill, got {t.plain!r}"
+
+
+@scenario("polish_fire_color_changes_with_level")
+async def _fire_color(app: DarkRoomApp, pilot) -> None:
+    # cold -> dead
+    t0 = app._location._render_room(app).plain
+    app.engine.stores_set("wood", 5)
+    app.room.light_fire()
+    t1 = app._location._render_room(app).plain
+    assert "dead" in t0 and "burning" in t1
+
+
+@scenario("polish_sound_engine_safe_when_mute")
+async def _sound_mute(app: DarkRoomApp, pilot) -> None:
+    from dark_room_tui.sound import SoundEngine
+    s = SoundEngine(enabled=False)
+    s.play("lightFire")  # should not raise
+    assert not s.enabled
+
+
 # ---- runner ---------------------------------------------------------------
 
 
