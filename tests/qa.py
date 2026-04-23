@@ -338,6 +338,90 @@ async def _income(app: DarkRoomApp, pilot) -> None:
     assert_eq(e.stores_get("wood"), 15, "5 seconds of income at 3/tick")
 
 
+# ---- Stage 6: robustness -------------------------------------------------
+
+
+@scenario("robust_stoke_with_no_wood")
+async def _stoke_no_wood(app: DarkRoomApp, pilot) -> None:
+    app.engine.stores_set("wood", 5)
+    app.room.light_fire()
+    app.engine.stores_set("wood", 0)
+    app.engine.advance(11)  # clear cooldown
+    ok = app.room.stoke_fire()
+    assert_eq(ok, False, "stoke fails cleanly when out of wood")
+
+
+@scenario("robust_build_without_warm_room")
+async def _build_cold(app: DarkRoomApp, pilot) -> None:
+    # builder present but room cold → notify, don't crash
+    app.engine.set("game", "builder", "level", value=4)
+    app.engine.set("game", "temperature", value={"value": 0})
+    app.engine.stores_set("wood", 999)
+    ok = app.room.build("trap")
+    assert_eq(ok, False, "cold room blocks builder")
+
+
+@scenario("robust_combat_with_empty_outfit")
+async def _combat_empty(app: DarkRoomApp, pilot) -> None:
+    app.path.init(); app.world.init()
+    app.engine.stores_set("cured meat", 5)
+    app.path.increase("cured meat", 5)
+    app.path.embark()
+    from dark_room_tui.world import Combat, Enemy
+    enemy = Enemy("test", 1, 1, 0.0, {"fur": (1, 1)})
+    app.world.state.combat = Combat(enemy=enemy, enemy_hp=enemy.health)
+    app.world.combat_attack("fists")  # no costed weapon needed
+    assert app.world.state.combat is None
+
+
+@scenario("robust_worker_decrease_below_zero")
+async def _dec_zero(app: DarkRoomApp, pilot) -> None:
+    app.engine.set("game", "buildings", "lodge", value=1)
+    app.engine.set("game", "population", value=2)
+    app.outside.init()
+    app.outside._ensure_workers_for("lodge")
+    # decrement beyond zero shouldn't go negative or crash
+    app.outside.decrease_worker("hunter", 5)
+    assert_eq((app.engine.get("game", "workers") or {}).get("hunter", 0), 0)
+
+
+@scenario("robust_move_beyond_bounds")
+async def _out_of_bounds(app: DarkRoomApp, pilot) -> None:
+    app.path.init(); app.world.init()
+    app.engine.stores_set("cured meat", 5)
+    app.path.increase("cured meat", 5)
+    app.path.embark()
+    # teleport to an edge and try to step further — should clamp
+    from dark_room_tui.world import SIZE
+    app.world.state.cur_pos = [SIZE - 1, SIZE - 1]
+    app.world.move(1, 0)   # off east
+    app.world.move(0, 1)   # off south
+    x, y = app.world.state.cur_pos
+    assert 0 <= x < SIZE and 0 <= y < SIZE, f"pos clamped, got ({x},{y})"
+
+
+@scenario("robust_unknown_action_does_not_crash")
+async def _unknown(app: DarkRoomApp, pilot) -> None:
+    # an unrelated key should be harmless
+    await pilot.press("j")
+    await pilot.pause()
+    assert_eq(app.active_location, "room")
+
+
+@scenario("robust_stores_panel_with_empty_state")
+async def _empty_store(app: DarkRoomApp, pilot) -> None:
+    # freshly built app has no stores — build_text must not crash
+    t = app._stores.build_text(app.engine, app.outside)
+    assert "stores" in t.plain
+
+
+@scenario("robust_location_panel_world_without_state")
+async def _world_without(app: DarkRoomApp, pilot) -> None:
+    app.active_location = "world"
+    t = app._location._render_world(app)
+    assert "not out there" in t.plain, "graceful empty-world render"
+
+
 # ---- runner ---------------------------------------------------------------
 
 

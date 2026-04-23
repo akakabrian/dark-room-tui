@@ -82,7 +82,8 @@ def _style_for(module: str | None) -> str:
 class StoresPanel(Static):
     """Right sidebar — stores + income rates."""
 
-    def refresh_panel(self, engine: Engine, outside: Outside) -> None:
+    def build_text(self, engine: Engine, outside: Outside) -> Text:
+        """Assemble the panel's Text (no Textual update — benchmarkable)."""
         stores = engine.state.get("stores") or {}
         income = engine.state.get("income") or {}
         income_by_store: dict[str, float] = {}
@@ -122,7 +123,10 @@ class StoresPanel(Static):
                 n = workers[job]
                 if n:
                     t.append(f"  {job:<10} {int(n)}\n")
-        self.update(t)
+        return t
+
+    def refresh_panel(self, engine: Engine, outside: Outside) -> None:
+        self.update(self.build_text(engine, outside))
 
     @staticmethod
     def _line(t: Text, name: str, n: int, rate: float) -> None:
